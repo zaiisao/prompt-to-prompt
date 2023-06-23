@@ -14,6 +14,7 @@
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from PIL import Image, ImageDraw, ImageFont
 import cv2
 from typing import Optional, Union, Tuple, List, Callable, Dict
@@ -72,6 +73,14 @@ def diffusion_step(model, controller, latents, context, t, guidance_scale, low_r
         latents_input = torch.cat([latents] * 2)
 
         if depth_mask is not None:
+            batch_size = latents_input.shape[0]
+
+            depth_mask = F.interpolate(depth_mask, size=(64, 64), mode='bicubic',
+                                    align_corners=False)
+
+            depth_mask = 2.0 * (depth_mask - depth_mask.min()) / (depth_mask.max() - depth_mask.min()) - 1.0
+            depth_mask = torch.cat([depth_mask] * 2 * batch_size)
+
             latents_input = torch.cat([latents_input, depth_mask], dim=1)
 
         noise_pred = model.unet(latents_input, t, encoder_hidden_states=context)["sample"]
