@@ -73,7 +73,6 @@ def diffusion_step(model, controller, latents, context, t, guidance_scale, low_r
         latents_input = torch.cat([latents] * 2)
 
         if depth_mask is not None:
-            breakpoint()
             batch_size = latents_input.shape[0]
 
             depth_mask = F.interpolate(depth_mask, size=(64, 64), mode='bicubic',
