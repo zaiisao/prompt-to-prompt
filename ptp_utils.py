@@ -61,14 +61,22 @@ def view_images(images, num_rows=1, offset_ratio=0.02):
     display(pil_img)
 
 
-def diffusion_step(model, controller, latents, context, t, guidance_scale, low_resource=False):
+def diffusion_step(model, controller, latents, context, t, guidance_scale, low_resource=False, depth_mask=None):
     if low_resource:
+        if depth_mask is not None:
+            raise NotImplementedError
+
         noise_pred_uncond = model.unet(latents, t, encoder_hidden_states=context[0])["sample"]
         noise_prediction_text = model.unet(latents, t, encoder_hidden_states=context[1])["sample"]
     else:
         latents_input = torch.cat([latents] * 2)
+
+        if depth_mask is not None:
+            latents_input = torch.cat([latents_input, depth_mask], dim=1)
+
         noise_pred = model.unet(latents_input, t, encoder_hidden_states=context)["sample"]
         noise_pred_uncond, noise_prediction_text = noise_pred.chunk(2)
+
     noise_pred = noise_pred_uncond + guidance_scale * (noise_prediction_text - noise_pred_uncond)
     latents = model.scheduler.step(noise_pred, t, latents)["prev_sample"]
     latents = controller.step_callback(latents)
@@ -141,6 +149,7 @@ def text2image_ldm_stable(
     generator: Optional[torch.Generator] = None,
     latent: Optional[torch.FloatTensor] = None,
     low_resource: bool = False,
+    depth_mask=None,
 ):
     register_attention_control(model, controller)
     height = width = 512
@@ -163,14 +172,17 @@ def text2image_ldm_stable(
     context = [uncond_embeddings, text_embeddings]
     if not low_resource:
         context = torch.cat(context)
-    latent, latents = init_latent(latent, model, height, width, generator, batch_size)
+    
+    is_depth = depth_mask is not None
+
+    latent, latents = init_latent(latent, model, height, width, generator, batch_size, is_depth=is_depth)
     
     # set timesteps
     # extra_set_kwargs = {"offset": 1}
     # model.scheduler.set_timesteps(num_inference_steps, **extra_set_kwargs)
     model.scheduler.set_timesteps(num_inference_steps)
     for t in tqdm(model.scheduler.timesteps):
-        latents = diffusion_step(model, controller, latents, context, t, guidance_scale, low_resource)
+        latents = diffusion_step(model, controller, latents, context, t, guidance_scale, low_resource, depth_mask=depth_mask)
     
     image = latent2image(model.vae, latents)
   
