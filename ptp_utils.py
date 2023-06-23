@@ -80,7 +80,7 @@ def diffusion_step(model, controller, latents, context, t, guidance_scale, low_r
                                     align_corners=False)
 
             depth_mask = 2.0 * (depth_mask - depth_mask.min()) / (depth_mask.max() - depth_mask.min()) - 1.0
-            depth_mask = torch.cat([depth_mask] * 2 * batch_size)
+            depth_mask = torch.cat([depth_mask] * batch_size)
 
             latents_input = torch.cat([latents_input, depth_mask], dim=1)
 
