@@ -84,13 +84,19 @@ def latent2image(vae, latents):
     return image
 
 
-def init_latent(latent, model, height, width, generator, batch_size):
+def init_latent(latent, model, height, width, generator, batch_size, is_depth=False):
+    in_channels = model.unet.config.in_channels
+    if is_depth:
+        in_channels -= 1
+
     if latent is None:
         latent = torch.randn(
-            (1, model.unet.in_channels, height // 8, width // 8),
+            #(1, model.unet.in_channels, height // 8, width // 8),
+            (1, in_channels, height // 8, width // 8),
             generator=generator,
         )
-    latents = latent.expand(batch_size,  model.unet.in_channels, height // 8, width // 8).to(model.device)
+    #latents = latent.expand(batch_size,  model.unet.in_channels, height // 8, width // 8).to(model.device)
+    latents = latent.expand(batch_size,  in_channels, height // 8, width // 8).to(model.device)
     return latent, latents
 
 
